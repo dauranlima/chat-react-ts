@@ -25,6 +25,7 @@ interface Contact {
 
 const Chat = () => {
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
+  const [searchTerm, setSearchTerm] = useState('')
   const [messages] = useState<Message[]>([
     {
       id: 1,
@@ -69,8 +70,30 @@ const Chat = () => {
       avatar: "https://ui-avatars.com/api/?name=Jane+Smith",
       lastMessage: "See you tomorrow!",
       lastMessageTime: "09:15"
+    },
+    {
+      id: 3,
+      name: "Dauran Lima",
+      avatar: "https://ui-avatars.com/api/?name=Dauran+Lima",
+      lastMessage: "See you tomorrow!",
+      lastMessageTime: "09:15"
+    },
+    {
+      id: 4,
+      name: "Michelle Lima",
+      avatar: "https://ui-avatars.com/api/?name=Michelle+Lima",
+      lastMessage: "See you tomorrow!",
+      lastMessageTime: "09:15"
     }
   ]
+
+  const filteredContacts = contacts.filter(contact => {
+    const searchLower = searchTerm.toLowerCase()
+    return (
+      contact.name.toLowerCase().includes(searchLower) ||
+      contact.lastMessage.toLowerCase().includes(searchLower)
+    )
+  })
 
   useEffect(() => {
     function handleClickOutside(event: MouseEvent) {
@@ -120,6 +143,13 @@ const Chat = () => {
     console.log('Iniciar nova conversa')
   }
 
+  const handleInputChange = (e: React.ChangeEvent<HTMLTextAreaElement>) => {
+    setMessageInput(e.target.value)
+    // Ajusta a altura do textarea automaticamente
+    e.target.style.height = 'inherit'
+    e.target.style.height = `${Math.min(e.target.scrollHeight, 150)}px`
+  }
+
   return (
     <div className="h-[calc(100vh-6rem)] flex flex-col md:flex-row">
       {/* Contacts Sidebar */}
@@ -137,34 +167,58 @@ const Chat = () => {
           <div className="relative">
             <input
               type="text"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
               placeholder="Buscar conversas..."
-              className="w-full pl-4 pr-10 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
+            <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+            </div>
+            {searchTerm && (
+              <button
+                className="absolute inset-y-0 right-0 pr-3 flex items-center"
+                onClick={() => setSearchTerm('')}
+                title="Limpar busca"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5 text-gray-400 hover:text-gray-600" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            )}
           </div>
         </div>
         <div className="overflow-y-auto h-[calc(100%-4rem)]">
-          {contacts.map((contact) => (
-            <div
-              key={contact.id}
-              className={`p-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50 ${
-                selectedContact?.id === contact.id ? 'bg-gray-100' : ''
-              }`}
-              onClick={() => setSelectedContact(contact)}
-            >
-              <div className="flex items-center space-x-4">
-                <img
-                  src={contact.avatar}
-                  alt={contact.name}
-                  className="w-12 h-12 rounded-full"
-                />
-                <div className="flex-1">
-                  <h3 className="text-sm font-medium text-gray-900">{contact.name}</h3>
-                  <p className="text-sm text-gray-500">{contact.lastMessage}</p>
+          {filteredContacts.length > 0 ? (
+            filteredContacts.map((contact) => (
+              <div
+                key={contact.id}
+                className={`p-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50 ${
+                  selectedContact?.id === contact.id ? 'bg-gray-100' : ''
+                }`}
+                onClick={() => setSelectedContact(contact)}
+              >
+                <div className="flex items-center space-x-4">
+                  <img
+                    src={contact.avatar}
+                    alt={contact.name}
+                    className="w-12 h-12 rounded-full"
+                  />
+                  <div className="flex-1">
+                    <h3 className="text-sm font-medium text-gray-900">{contact.name}</h3>
+                    <p className="text-sm text-gray-500">{contact.lastMessage}</p>
+                  </div>
+                  <span className="text-xs text-gray-400">{contact.lastMessageTime}</span>
                 </div>
-                <span className="text-xs text-gray-400">{contact.lastMessageTime}</span>
               </div>
+            ))
+          ) : (
+            <div className="p-4 text-center text-gray-500">
+              Nenhuma conversa encontrada
             </div>
-          ))}
+          )}
         </div>
       </div>
 
@@ -236,7 +290,7 @@ const Chat = () => {
             </div>
 
             {/* Message Input */}
-            <div className="p-4 border-t border-gray-200 bg-white">
+            <div className="p-3 border-t border-gray-200 bg-white">
               <div className="flex space-x-4">
                 <div className="flex space-x-2">
                   <button 
@@ -272,20 +326,21 @@ const Chat = () => {
                     </div>
                   )}
                 </div>
-                <input
-                  type="text"
+                <textarea
                   value={messageInput}
-                  onChange={(e) => setMessageInput(e.target.value)}
+                  onChange={handleInputChange}
                   placeholder="Escreva uma mensagem..."
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none min-h-[40px] max-h-[150px] overflow-y-auto scrollbar-hide"
                   onKeyPress={(e) => {
-                    if (e.key === 'Enter') {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault()
                       handleSendMessage()
                     }
                   }}
+                  rows={1}
                 />
                 <button 
-                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 self-end"
                   onClick={handleSendMessage}
                 >
                   Enviar
