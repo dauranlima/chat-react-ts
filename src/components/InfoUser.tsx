@@ -15,6 +15,7 @@ const InfoUser = ({ onNewChat }: InfoUserProps) => {
   const [isDropdownOpen, setIsDropdownOpen] = useState(false)
   const [isEditModalOpen, setIsEditModalOpen] = useState(false)
   const [newFullName, setNewFullName] = useState(user?.full_name || '')
+  const [nameError, setNameError] = useState('')
 
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -29,14 +30,68 @@ const InfoUser = ({ onNewChat }: InfoUserProps) => {
     }
   }, [])
 
+  // Função para validar o nome
+  const validateName = (name: string): boolean => {
+    // Remove espaços extras e normaliza
+    const trimmedName = name.trim()
+    
+    // Verifica se está vazio
+    if (!trimmedName) {
+      setNameError('O nome não pode ficar em branco')
+      return false
+    }
+
+    // Verifica o comprimento mínimo
+    if (trimmedName.length < 3) {
+      setNameError('O nome deve ter pelo menos 3 caracteres')
+      return false
+    }
+
+    // Verifica se contém apenas números
+    if (/^\d+$/.test(trimmedName)) {
+      setNameError('O nome não pode conter apenas números')
+      return false
+    }
+
+    // Verifica se contém apenas emojis
+    const emojiRegex = /^[\p{Emoji}]+$/u
+    if (emojiRegex.test(trimmedName)) {
+      setNameError('O nome não pode conter apenas emojis')
+      return false
+    }
+
+    // Verifica se contém caracteres válidos (letras, espaços e alguns caracteres especiais comuns em nomes)
+    const nameRegex = /^[A-Za-zÀ-ÖØ-öø-ÿ\s'-]+$/
+    if (!nameRegex.test(trimmedName)) {
+      setNameError('O nome deve conter apenas letras, espaços e caracteres válidos')
+      return false
+    }
+
+    // Verifica se tem pelo menos duas palavras (nome e sobrenome)
+    const words = trimmedName.split(/\s+/).filter(word => word.length > 0)
+    if (words.length < 2) {
+      setNameError('Por favor, insira nome e sobrenome')
+      return false
+    }
+
+    // Se passou por todas as validações, limpa o erro
+    setNameError('')
+    return true
+  }
+
   const handleEditName = async () => {
     try {
       if (!user) return
+
+      // Valida o nome antes de prosseguir
+      if (!validateName(newFullName)) {
+        return
+      }
       
       const { error } = await supabase
         .from('profiles')
         .update({ 
-          full_name: newFullName,
+          full_name: newFullName.trim(),
           updated_at: new Date().toISOString()
         })
         .eq('id', user.id)
@@ -45,7 +100,7 @@ const InfoUser = ({ onNewChat }: InfoUserProps) => {
 
       await updateUserProfile({
         ...user,
-        full_name: newFullName
+        full_name: newFullName.trim()
       })
 
       setIsEditModalOpen(false)
@@ -320,13 +375,27 @@ const InfoUser = ({ onNewChat }: InfoUserProps) => {
             <div className="inline-block align-bottom bg-white rounded-lg text-left overflow-hidden shadow-xl transform transition-all sm:my-8 sm:align-middle sm:max-w-lg sm:w-full">
               <div className="bg-white px-4 pt-5 pb-4 sm:p-6 sm:pb-4">
                 <h3 className="text-lg font-medium text-gray-900 mb-4">Editar nome</h3>
-                <input
-                  type="text"
-                  value={newFullName}
-                  onChange={(e) => setNewFullName(e.target.value)}
-                  className="mt-1 py-3 px-2 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 sm:text-sm"
-                  placeholder="Digite seu nome completo"
-                />
+                <div>
+                  <input
+                    type="text"
+                    value={newFullName}
+                    onChange={(e) => {
+                      setNewFullName(e.target.value)
+                      // Limpa o erro quando o usuário começa a digitar
+                      if (nameError) setNameError('')
+                    }}
+                    className={`mt-1 py-3 px-2 block w-full rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500 sm:text-sm ${
+                      nameError ? 'border-red-300' : 'border-gray-300'
+                    }`}
+                    placeholder="Digite seu nome completo"
+                  />
+                  {nameError && (
+                    <p className="mt-2 text-sm text-red-600">{nameError}</p>
+                  )}
+                  <p className="mt-2 text-xs text-gray-500">
+                    Digite seu nome completo usando apenas letras, espaços e caracteres válidos.
+                  </p>
+                </div>
               </div>
               <div className="bg-gray-50 px-4 py-3 sm:px-6 sm:flex sm:flex-row-reverse">
                 <button
@@ -338,7 +407,11 @@ const InfoUser = ({ onNewChat }: InfoUserProps) => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => setIsEditModalOpen(false)}
+                  onClick={() => {
+                    setIsEditModalOpen(false)
+                    setNameError('')  // Limpa qualquer erro ao fechar
+                    setNewFullName(user?.full_name || '')  // Restaura o nome original
+                  }}
                   className="mt-3 w-full inline-flex justify-center rounded-md border border-gray-300 shadow-sm px-4 py-2 bg-white text-base font-medium text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 sm:mt-0 sm:ml-3 sm:w-auto sm:text-sm"
                 >
                   Cancelar
