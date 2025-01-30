@@ -3,9 +3,9 @@ import { useAuth } from './contexts/AuthContext'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Chat from './pages/Chat'
-import { AuthProvider } from './contexts/AuthContext'
 import ForgotPassword from './pages/ForgotPassword'
 import ResetPassword from './pages/ResetPassword'
+import AuthLayout from './layouts/AuthLayout'
 
 function PrivateRoute({ children }: { children: React.ReactNode }) {
   const { user, loading } = useAuth()
@@ -37,16 +37,13 @@ function PublicRoute({ children }: { children: React.ReactNode }) {
 
 function App() {
   return (
-    <AuthProvider>
-      <Router>
-        <Routes>
-          {/* Rota raiz sempre redireciona para /chat */}
-          <Route 
-            path="/" 
-            element={<Navigate to="/chat" replace />} 
-          />
+    <Router>
+      <Routes>
+        {/* Rota raiz */}
+        <Route path="/" element={<Navigate to="/chat" replace />} />
 
-          {/* Rotas públicas */}
+        {/* Rotas de autenticação usando AuthLayout */}
+        <Route element={<AuthLayout />}>
           <Route
             path="/login"
             element={
@@ -63,25 +60,30 @@ function App() {
               </PublicRoute>
             }
           />
-
-          {/* Rota protegida do chat */}
           <Route
-            path="/chat"
-            element={
-              <PrivateRoute>
-                <Chat />
-              </PrivateRoute>
-            }
+            path="/forgot-password"
+            element={<ForgotPassword />}
           />
+          <Route
+            path="/reset-password"
+            element={<ResetPassword />}
+          />
+        </Route>
 
-          {/* Rota para qualquer outro caminho não definido */}
-          <Route path="*" element={<Navigate to="/chat" replace />} />
+        {/* Rota do chat */}
+        <Route
+          path="/chat"
+          element={
+            <PrivateRoute>
+              <Chat />
+            </PrivateRoute>
+          }
+        />
 
-          <Route path="/forgot-password" element={<ForgotPassword />} />
-          <Route path="/reset-password" element={<ResetPassword />} />
-        </Routes>
-      </Router>
-    </AuthProvider>
+        {/* Rota para qualquer outro caminho não definido */}
+        <Route path="*" element={<Navigate to="/chat" replace />} />
+      </Routes>
+    </Router>
   )
 }
 

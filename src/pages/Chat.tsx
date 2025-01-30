@@ -4,6 +4,7 @@ import { useAuth } from '../contexts/AuthContext'
 import EmojiPicker from 'emoji-picker-react'
 import type { EmojiClickData } from 'emoji-picker-react'
 import InfoUser from '../components/InfoUser'
+import ChatListItem from '../components/ChatListItem'
 
 interface Message {
   id: number
@@ -59,8 +60,7 @@ const Chat = () => {
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const emojiPickerRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
-
-  const contacts: Contact[] = [
+  const [contacts, setContacts] = useState<Contact[]>([
     {
       id: 1,
       name: "John Doe",
@@ -89,7 +89,7 @@ const Chat = () => {
       lastMessage: "See you tomorrow!",
       lastMessageTime: "09:15"
     }
-  ]
+  ])
 
   const filteredContacts = contacts.filter(contact => {
     const searchLower = searchTerm.toLowerCase()
@@ -163,6 +163,10 @@ const Chat = () => {
     }
   }
 
+  const handleDeleteChat = (contactId: number) => {
+    setContacts(prevContacts => prevContacts.filter(contact => contact.id !== contactId))
+  }
+
   return (
     <div className="h-screen flex flex-col md:flex-row bg-gray-100">
       {/* Sidebar */}
@@ -173,12 +177,7 @@ const Chat = () => {
         <div className="flex flex-col h-full">
           {/* Cabeçalho fixo */}
           <div className="p-4 border-b border-gray-200">
-            <InfoUser
-              name="Matt Smith"
-              email="matt-smith@gmail.com"
-              avatarUrl="https://ui-avatars.com/api/?name=Matt+Smith"
-              onNewChat={handleNewChat}
-            />
+            <InfoUser onNewChat={handleNewChat} />
             {/* Search Input */}
             <div className="relative mt-4">
               <input
@@ -209,45 +208,25 @@ const Chat = () => {
 
           {/* Lista de contatos com scroll */}
           <div className="flex-1 overflow-y-auto">
-            {filteredContacts.length > 0 ? (
-              filteredContacts.map((contact) => (
-                <div
-                  key={contact.id}
-                  className={`p-4 border-b border-gray-200 cursor-pointer hover:bg-gray-50 ${
-                    selectedContact?.id === contact.id ? 'bg-gray-100' : ''
-                  }`}
-                  onClick={() => setSelectedContact(contact)}
-                >
-                  <div className="flex items-center space-x-4">
-                    <img
-                      src={contact.avatar}
-                      alt={contact.name}
-                      className="w-12 h-12 rounded-full"
-                    />
-                    <div className="flex-1">
-                      <h3 className="text-sm font-medium text-gray-900">{contact.name}</h3>
-                      <p className="text-sm text-gray-500">{contact.lastMessage}</p>
-                    </div>
-                    <span className="text-xs text-gray-400">{contact.lastMessageTime}</span>
-                  </div>
-                </div>
-              ))
-            ) : (
-              <div className="p-4 text-center text-gray-500">
-                Nenhuma conversa encontrada
-              </div>
-            )}
+            {filteredContacts.map((contact) => (
+              <ChatListItem
+                key={contact.id}
+                contact={contact}
+                onSelect={setSelectedContact}
+                onDelete={handleDeleteChat}
+              />
+            ))}
           </div>
 
-          {/* Botão de logout fixo na parte inferior */}
+          {/* Botão de logout mais discreto */}
           <div className="p-4 border-t border-gray-200 mt-auto">
             <button
               onClick={handleLogout}
-              className="w-full flex items-center justify-center space-x-2 px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 focus:outline-none focus:ring-2 focus:ring-red-500 transition-colors"
+              className="flex items-center justify-center space-x-2 px-8 py-2.5 text-sm text-gray-600 hover:text-gray-800 rounded-md hover:bg-gray-100 transition-colors duration-200"
             >
               <svg 
                 xmlns="http://www.w3.org/2000/svg" 
-                className="h-5 w-5" 
+                className="h-4 w-4" 
                 fill="none" 
                 viewBox="0 0 24 24" 
                 stroke="currentColor"

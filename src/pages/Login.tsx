@@ -48,112 +48,93 @@ const Login = () => {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50 py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div>
-          <h2 className="mt-6 text-center text-3xl font-extrabold text-gray-900">
-            Entre na sua conta
-          </h2>
+    <>
+      {justRegistered && (
+        <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded relative" role="alert">
+          <p>Cadastro realizado com sucesso!</p>
+          <p className="text-sm">Por favor, verifique seu email para confirmar sua conta antes de fazer login.</p>
         </div>
+      )}
 
-        {justRegistered && (
-          <div className="bg-green-50 border border-green-200 text-green-600 px-4 py-3 rounded relative" role="alert">
-            <p>Cadastro realizado com sucesso!</p>
-            <p className="text-sm">Por favor, verifique seu email para confirmar sua conta antes de fazer login.</p>
-          </div>
-        )}
+      {errorMessage && (
+        <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded relative" role="alert">
+          <p>{errorMessage}</p>
+        </div>
+      )}
 
-        {errorMessage && (
-          <div className="bg-red-50 border border-red-200 text-red-600 px-4 py-3 rounded relative" role="alert">
-            <p>{errorMessage}</p>
-            {errorMessage.includes('confirme seu email') && (
-              <button
-                onClick={() => setErrorMessage('')}
-                className="absolute top-0 right-0 p-4"
-              >
-                <span className="sr-only">Fechar</span>
-                <svg className="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                </svg>
-              </button>
-            )}
-          </div>
-        )}
-
-        <Formik
-          initialValues={{ email: '', password: '' }}
-          validationSchema={loginSchema}
-          onSubmit={handleSubmit}
-        >
-          {({ errors, touched, isSubmitting }) => (
-            <Form className="mt-8 space-y-6">
-              <div className="rounded-md shadow-sm space-y-4">
-                <div>
-                  <label htmlFor="email" className="block text-sm font-medium text-gray-700">
-                    Email
-                  </label>
-                  <Field
-                    id="email"
-                    name="email"
-                    type="email"
-                    autoComplete="email"
-                    className="mt-1 appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                    placeholder="Digite seu email"
-                  />
-                  {errors.email && touched.email && (
-                    <p className="mt-1 text-sm text-red-600">{errors.email}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-700">
-                    Senha
-                  </label>
-                  <Field
-                    id="password"
-                    name="password"
-                    type="password"
-                    autoComplete="current-password"
-                    className="mt-1 appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
-                    placeholder="Digite sua senha"
-                  />
-                  {errors.password && touched.password && (
-                    <p className="mt-1 text-sm text-red-600">{errors.password}</p>
-                  )}
-                </div>
-              </div>
-
-              <div className="flex items-center justify-between">
-                <div className="text-sm">
-                  <Link
-                    to="/forgot-password"
-                    className="font-medium text-blue-600 hover:text-blue-500"
-                  >
-                    Esqueci minha senha
-                  </Link>
-                </div>
+      <Formik
+        initialValues={{ email: '', password: '' }}
+        validationSchema={loginSchema}
+        onSubmit={handleSubmit}
+      >
+        {({ errors, touched, isSubmitting }) => (
+          <Form className="mt-8 space-y-6">
+            <div className="rounded-md shadow-sm space-y-4">
+              <div>
+                <label htmlFor="email" className="block text-sm font-medium text-gray-700">
+                  Email
+                </label>
+                <Field
+                  id="email"
+                  name="email"
+                  type="email"
+                  autoComplete="email"
+                  className="mt-1 appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                  placeholder="Digite seu email"
+                />
+                {errors.email && touched.email && (
+                  <p className="mt-1 text-sm text-red-600">{errors.email}</p>
+                )}
               </div>
 
               <div>
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  {isSubmitting ? 'Entrando...' : 'Entrar'}
-                </button>
+                <label htmlFor="password" className="block text-sm font-medium text-gray-700">
+                  Senha
+                </label>
+                <Field
+                  id="password"
+                  name="password"
+                  type="password"
+                  autoComplete="current-password"
+                  className="mt-1 appearance-none rounded-md relative block w-full px-3 py-2 border border-gray-300 placeholder-gray-500 text-gray-900 focus:outline-none focus:ring-blue-500 focus:border-blue-500 focus:z-10 sm:text-sm"
+                  placeholder="Digite sua senha"
+                />
+                {errors.password && touched.password && (
+                  <p className="mt-1 text-sm text-red-600">{errors.password}</p>
+                )}
               </div>
+            </div>
 
-              <div className="text-sm text-center">
-                <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500">
-                  Ainda não tem uma conta? Cadastre-se
+            <div className="flex items-center justify-between">
+              <div className="text-sm">
+                <Link
+                  to="/forgot-password"
+                  className="font-medium text-blue-600 hover:text-blue-500"
+                >
+                  Esqueci minha senha
                 </Link>
               </div>
-            </Form>
-          )}
-        </Formik>
-      </div>
-    </div>
+            </div>
+
+            <div>
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="group relative w-full flex justify-center py-2 px-4 border border-transparent text-sm font-medium rounded-md text-white bg-blue-600 hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-blue-500 disabled:opacity-50"
+              >
+                {isSubmitting ? 'Entrando...' : 'Entrar'}
+              </button>
+            </div>
+
+            <div className="text-sm text-center">
+              <Link to="/register" className="font-medium text-blue-600 hover:text-blue-500">
+                Ainda não tem uma conta? Cadastre-se
+              </Link>
+            </div>
+          </Form>
+        )}
+      </Formik>
+    </>
   )
 }
 
