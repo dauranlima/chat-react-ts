@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { useAuth } from '../contexts/AuthContext'
 import { supabase } from '../lib/supabase'
+import Swal from 'sweetalert2'
 
 interface InfoUserProps {
   onNewChat: () => void
@@ -11,8 +12,22 @@ const InfoUser = ({ onNewChat }: InfoUserProps) => {
   const fileInputRef = useRef<HTMLInputElement>(null)
   const [uploading, setUploading] = useState(false)
 
-  const handleAvatarClick = () => {
-    fileInputRef.current?.click()
+  const handleAvatarClick = async () => {
+    const result = await Swal.fire({
+      title: 'Alterar foto do perfil',
+      text: 'Deseja alterar sua foto de perfil?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Sim, alterar',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#3B82F6',
+      cancelButtonColor: '#EF4444',
+      reverseButtons: true
+    })
+
+    if (result.isConfirmed) {
+      fileInputRef.current?.click()
+    }
   }
 
   const handleFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -21,64 +36,111 @@ const InfoUser = ({ onNewChat }: InfoUserProps) => {
 
     // Validações
     if (!file.type.match(/^image\/(jpeg|png)$/)) {
-      alert('Apenas imagens JPG e PNG são permitidas')
+      await Swal.fire({
+        title: 'Formato inválido',
+        text: 'Apenas imagens JPG e PNG são permitidas',
+        icon: 'error',
+        confirmButtonColor: '#3B82F6'
+      })
       return
     }
 
     if (file.size > 1024 * 1024) {
-      alert('A imagem deve ter no máximo 1MB')
+      await Swal.fire({
+        title: 'Arquivo muito grande',
+        text: 'A imagem deve ter no máximo 1MB',
+        icon: 'error',
+        confirmButtonColor: '#3B82F6'
+      })
       return
     }
 
-    try {
-      setUploading(true)
+    // Mostra preview da imagem antes de fazer upload
+    const reader = new FileReader()
+    reader.onload = async (e) => {
+      const result = await Swal.fire({
+        title: 'Preview da imagem',
+        text: 'Deseja usar esta imagem como seu avatar?',
+        imageUrl: e.target?.result as string,
+        imageWidth: 200,
+        imageHeight: 200,
+        imageAlt: 'Preview do avatar',
+        showCancelButton: true,
+        confirmButtonText: 'Sim, usar esta imagem',
+        cancelButtonText: 'Cancelar',
+        confirmButtonColor: '#3B82F6',
+        cancelButtonColor: '#EF4444',
+        reverseButtons: true
+      })
 
-      // Remove avatar antigo se existir
-      if (user?.avatar_url) {
-        const oldAvatarPath = user.avatar_url.split('/').pop()
-        if (oldAvatarPath) {
-          await supabase.storage
+      if (result.isConfirmed) {
+        try {
+          setUploading(true)
+
+          // Remove avatar antigo se existir
+          if (user?.avatar_url) {
+            const oldAvatarPath = user.avatar_url.split('/').pop()
+            if (oldAvatarPath) {
+              await supabase.storage
+                .from('avatars')
+                .remove([oldAvatarPath])
+            }
+          }
+
+          // Gera um nome único para o arquivo
+          const fileExt = file.name.split('.').pop()
+          const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
+
+          // Upload para o Storage do Supabase
+          const { error: uploadError, data } = await supabase.storage
             .from('avatars')
-            .remove([oldAvatarPath])
+            .upload(fileName, file, {
+              cacheControl: '3600',
+              upsert: true
+            })
+
+          if (uploadError) throw uploadError
+
+          // Gera URL pública do arquivo
+          const { data: { publicUrl } } = supabase.storage
+            .from('avatars')
+            .getPublicUrl(fileName)
+
+          // Atualiza o perfil do usuário com a nova URL do avatar
+          if (user) {
+            await updateUserProfile({
+              ...user,
+              avatar_url: publicUrl
+            })
+            
+            await Swal.fire({
+              title: 'Sucesso!',
+              text: 'Avatar atualizado com sucesso!',
+              icon: 'success',
+              confirmButtonColor: '#3B82F6',
+              timer: 2000,
+              timerProgressBar: true,
+              showConfirmButton: false
+            })
+          }
+        } catch (error: any) {
+          console.error('Erro ao atualizar avatar:', error)
+          await Swal.fire({
+            title: 'Erro!',
+            text: error.message || 'Erro ao atualizar avatar. Tente novamente.',
+            icon: 'error',
+            confirmButtonColor: '#3B82F6'
+          })
+        } finally {
+          setUploading(false)
         }
       }
+    }
+    reader.readAsDataURL(file)
 
-      // Gera um nome único para o arquivo
-      const fileExt = file.name.split('.').pop()
-      const fileName = `${Date.now()}-${Math.random().toString(36).substring(2)}.${fileExt}`
-
-      // Upload para o Storage do Supabase
-      const { error: uploadError, data } = await supabase.storage
-        .from('avatars')
-        .upload(fileName, file, {
-          cacheControl: '3600',
-          upsert: true
-        })
-
-      if (uploadError) throw uploadError
-
-      // Gera URL pública do arquivo
-      const { data: { publicUrl } } = supabase.storage
-        .from('avatars')
-        .getPublicUrl(fileName)
-
-      // Atualiza o perfil do usuário com a nova URL do avatar
-      if (user) {
-        await updateUserProfile({
-          ...user,
-          avatar_url: publicUrl
-        })
-        alert('Avatar atualizado com sucesso!')
-      }
-    } catch (error: any) {
-      console.error('Erro ao atualizar avatar:', error)
-      alert(error.message || 'Erro ao atualizar avatar. Tente novamente.')
-    } finally {
-      setUploading(false)
-      // Limpa o input de arquivo
-      if (fileInputRef.current) {
-        fileInputRef.current.value = ''
-      }
+    // Limpa o input de arquivo
+    if (fileInputRef.current) {
+      fileInputRef.current.value = ''
     }
   }
 
@@ -91,6 +153,9 @@ const InfoUser = ({ onNewChat }: InfoUserProps) => {
             alt={user?.full_name || 'User Avatar'}
             className="h-10 w-10 rounded-full cursor-pointer hover:opacity-80 transition-opacity"
             onClick={handleAvatarClick}
+            title="Clique aqui para alterar a imagem"
+            role="button"
+            aria-label="Alterar foto do perfil"
           />
           {uploading && (
             <div className="absolute inset-0 flex items-center justify-center bg-black bg-opacity-50 rounded-full">

@@ -1,13 +1,21 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { User as SupabaseUser } from '@supabase/supabase-js'
-import { supabase } from '../lib/supabase'
+import { supabase, supabaseAdmin } from '../lib/supabase'
 import { User } from '../types/user'
+import { Session } from '@supabase/supabase-js'
 
 interface AuthContextType {
   user: User | null
   loading: boolean
   signIn: (email: string, password: string) => Promise<void>
-  signUp: (email: string, password: string, userData: any) => Promise<void>
+  signUp: (
+    email: string,
+    password: string,
+    metadata: { username: string; full_name: string }
+  ) => Promise<{
+    data: { user: SupabaseUser | null; session: Session | null } | null
+    error: Error | null
+  }>
   signOut: () => Promise<void>
   updateUserProfile: (userData: User) => Promise<void>
 }
@@ -97,45 +105,95 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     }
   }
 
-  const signUp = async (email: string, password: string, userData: any) => {
+  const signUp = async (
+    email: string,
+    password: string,
+    metadata: { username: string; full_name: string }
+  ) => {
     try {
-      const { data, error } = await supabase.auth.signUp({
+      // 1. Criar usuário no Auth
+      console.log('Iniciando processo de registro...')
+      const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: userData,
-        },
+          data: metadata,
+          emailRedirectTo: `${window.location.origin}/login?verified=true`
+        }
       })
 
-      if (error) throw error
+      if (authError) {
+        console.error('Erro na criação do usuário:', authError)
+        if (authError.message === 'email rate limit exceeded') {
+          throw new Error('Muitas tentativas de registro. Por favor, aguarde alguns minutos antes de tentar novamente.')
+        }
+        throw authError
+      }
 
-      if (data.user) {
-        const newProfile: User = {
-          id: data.user.id,
-          username: userData.username,
-          full_name: userData.full_name,
-          email: email,
-          online_status: 'online' as const,
-          last_seen: new Date().toISOString(),
-          avatar_url: null,
-          status: 'active' as const,
-          bio: '',
-          created_at: new Date().toISOString(),
-          updated_at: new Date().toISOString(),
-          is_verified: false,
-          is_blocked: false
+      if (!authData.user) {
+        console.error('Usuário não foi criado no Auth')
+        throw new Error('Não foi possível criar o usuário')
+      }
+
+      console.log('Usuário criado com sucesso no Auth:', authData.user.id)
+
+      // 2. Criar perfil do usuário usando o supabaseAdmin
+      const newProfile = {
+        id: authData.user.id,
+        username: metadata.username,
+        full_name: metadata.full_name,
+        email: email,
+        online_status: 'offline',
+        last_seen: new Date().toISOString(),
+        avatar_url: null,
+        status: 'active',
+        bio: '',
+        is_verified: false,
+        is_blocked: false
+      }
+
+      console.log('Tentando criar perfil:', newProfile)
+
+      const { data: profileData, error: profileError } = await supabaseAdmin
+        .from('profiles')
+        .insert([newProfile])
+        .select()
+
+      if (profileError) {
+        console.error('Erro na criação do perfil:', profileError)
+        
+        // Tenta deletar o usuário do Auth se falhar ao criar o perfil
+        try {
+          await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+        } catch (deleteError) {
+          console.error('Erro ao deletar usuário após falha no perfil:', deleteError)
         }
 
-        const { error: profileError } = await supabase
-          .from('profiles')
-          .insert([newProfile])
-
-        if (profileError) throw profileError
-
-        setUser(newProfile)
+        throw new Error(`Erro ao criar perfil do usuário: ${profileError.message}`)
       }
+
+      console.log('Perfil criado com sucesso:', profileData)
+      return { data: authData, error: null }
+
     } catch (error) {
-      throw error
+      console.error('Erro completo no signUp:', error)
+      if (error instanceof Error) {
+        // Tratamento específico para o erro de limite de email
+        if (error.message.includes('email rate limit exceeded')) {
+          return { 
+            data: null, 
+            error: new Error('Muitas tentativas de registro. Por favor, aguarde alguns minutos antes de tentar novamente.')
+          }
+        }
+        return { 
+          data: null, 
+          error: new Error(error.message || 'Erro ao criar usuário')
+        }
+      }
+      return { 
+        data: null, 
+        error: new Error('Erro desconhecido ao criar usuário')
+      }
     }
   }
 

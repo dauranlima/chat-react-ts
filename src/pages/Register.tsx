@@ -3,6 +3,8 @@ import * as Yup from 'yup'
 import { Link, useNavigate } from 'react-router-dom'
 import { useAuth } from '../contexts/AuthContext'
 import { useState } from 'react'
+import Swal from 'sweetalert2'
+import { supabase } from '../lib/supabase'
 
 const registerSchema = Yup.object().shape({
   username: Yup.string()
@@ -46,25 +48,86 @@ const Register = () => {
     { setSubmitting }: { setSubmitting: (isSubmitting: boolean) => void }
   ) => {
     try {
-      setErrorMessage('')
-      console.log('Enviando formulário:', values)
+      // Verifica se o username já existe (case insensitive)
+      const { data: existingUsers, error: checkError } = await supabase
+        .from('profiles')
+        .select('username')
+        .ilike('username', values.username)
 
-      const result = await signUp(values.email, values.password, {
-        username: values.username,
+      if (checkError) {
+        console.error('Erro ao verificar username:', checkError)
+        throw new Error('Erro ao verificar disponibilidade do username')
+      }
+
+      if (existingUsers && existingUsers.length > 0) {
+        await Swal.fire({
+          title: 'Username indisponível',
+          text: 'Este nome de usuário já está em uso. Por favor, escolha outro.',
+          icon: 'error',
+          confirmButtonColor: '#3B82F6'
+        })
+        setSubmitting(false)
+        return
+      }
+
+      // Se chegou aqui, o username está disponível
+      console.log('Username disponível, iniciando registro...')
+      const { data, error } = await signUp(values.email, values.password, {
+        username: values.username.toLowerCase(), // Sempre salva em lowercase
         full_name: values.full_name
       })
 
-      console.log('Resultado do registro:', result)
+      if (error) {
+        console.error('Erro retornado pelo signUp:', error)
+        throw error
+      }
+
+      if (!data?.user) {
+        throw new Error('Não foi possível criar o usuário')
+      }
+
+      await Swal.fire({
+        title: 'Cadastro realizado!',
+        text: 'Por favor, verifique seu email para confirmar sua conta antes de fazer login.',
+        icon: 'success',
+        confirmButtonColor: '#3B82F6',
+        timer: 3000,
+        timerProgressBar: true
+      })
+
       navigate('/login?registered=true')
     } catch (error) {
-      console.error('Erro no registro:', error)
+      console.error('Erro detalhado no registro:', error)
+      
+      let errorMessage = 'Erro ao cadastrar. Tente novamente.'
+      let errorTitle = 'Erro no cadastro'
+      let isRateLimitError = false
+      
       if (error instanceof Error) {
         if (error.message.includes('email already registered')) {
-          setErrorMessage('Este email já está cadastrado')
-        } else {
-          setErrorMessage(`Erro ao cadastrar: ${error.message}`)
+          errorTitle = 'Email já cadastrado'
+          errorMessage = 'Este email já está cadastrado. Por favor, use outro email ou faça login.'
+        } else if (error.message.includes('Database error')) {
+          errorTitle = 'Erro no banco de dados'
+          errorMessage = 'Houve um erro ao salvar seus dados. Por favor, tente novamente.'
+        } else if (error.message.includes('duplicate key')) {
+          errorTitle = 'Username indisponível'
+          errorMessage = 'Este nome de usuário já está em uso. Por favor, escolha outro.'
+        } else if (error.message.includes('email rate limit exceeded') || error.message.includes('Muitas tentativas de registro')) {
+          errorTitle = 'Limite de tentativas excedido'
+          errorMessage = 'Muitas tentativas de registro. Por favor, aguarde alguns minutos antes de tentar novamente.'
+          isRateLimitError = true
         }
       }
+
+      await Swal.fire({
+        title: errorTitle,
+        text: errorMessage,
+        icon: 'error',
+        confirmButtonColor: '#3B82F6',
+        timer: isRateLimitError ? 5000 : undefined,
+        timerProgressBar: isRateLimitError
+      })
     } finally {
       setSubmitting(false)
     }

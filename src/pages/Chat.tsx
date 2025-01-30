@@ -6,6 +6,7 @@ import type { EmojiClickData } from 'emoji-picker-react'
 import InfoUser from '../components/InfoUser'
 import ChatListItem from '../components/ChatListItem'
 import { supabase } from '../lib/supabase'
+import Swal from 'sweetalert2'
 
 interface Message {
   id: number
@@ -156,22 +157,53 @@ const Chat = () => {
   }
 
   const handleLogout = async () => {
-    try {
-      // Primeiro limpa o estado local
-      setSelectedContact(null)
-      setSearchTerm('')
-      setMessageInput('')
-      setShowEmojiPicker(false)
+    // Mostra confirmação antes de fazer logout
+    const result = await Swal.fire({
+      title: 'Sair do sistema',
+      text: 'Tem certeza que deseja sair?',
+      icon: 'question',
+      showCancelButton: true,
+      confirmButtonText: 'Sim, sair',
+      cancelButtonText: 'Cancelar',
+      confirmButtonColor: '#EF4444',
+      cancelButtonColor: '#3B82F6',
+      reverseButtons: true
+    })
 
-      // Faz o logout usando o contexto de autenticação
-      await signOut()
-      
-      // Redireciona para o login
-      navigate('/login', { replace: true })
-    } catch (error) {
-      console.error('Erro ao fazer logout:', error)
-      // Mesmo com erro, força o redirecionamento
-      navigate('/login', { replace: true })
+    if (result.isConfirmed) {
+      try {
+        // Primeiro limpa o estado local
+        setSelectedContact(null)
+        setSearchTerm('')
+        setMessageInput('')
+        setShowEmojiPicker(false)
+
+        // Faz o logout usando o contexto de autenticação
+        await signOut()
+        
+        // Mostra mensagem de sucesso
+        await Swal.fire({
+          title: 'Até logo!',
+          text: 'Você foi desconectado com sucesso',
+          icon: 'success',
+          timer: 2000,
+          timerProgressBar: true,
+          showConfirmButton: false
+        })
+
+        // Redireciona para o login
+        navigate('/login', { replace: true })
+      } catch (error) {
+        console.error('Erro ao fazer logout:', error)
+        // Mostra erro e força o redirecionamento
+        await Swal.fire({
+          title: 'Erro!',
+          text: 'Ocorreu um erro ao sair do sistema',
+          icon: 'error',
+          confirmButtonColor: '#3B82F6'
+        })
+        navigate('/login', { replace: true })
+      }
     }
   }
 
