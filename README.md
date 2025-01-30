@@ -90,17 +90,3 @@ Funcionalidades do chat:
 3. Faça o Commit das suas mudanças (`git commit -m 'Add some AmazingFeature'`)
 4. Faça o Push para a Branch (`git push origin feature/AmazingFeature`)
 5. Abra um Pull Request
-
-## 📝 Licença
-
-Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
-
-## 👤 Autor
-
-Seu Nome
-- GitHub: [@seu-usuario](https://github.com/seu-usuario)
-- LinkedIn: [@seu-linkedin](https://linkedin.com/in/seu-linkedin)
-
----
-
-⭐️ From [seu-usuario](https://github.com/seu-usuario)
