@@ -33,31 +33,7 @@ const Chat = () => {
   const navigate = useNavigate()
   const [selectedContact, setSelectedContact] = useState<Contact | null>(null)
   const [searchTerm, setSearchTerm] = useState('')
-  const [messages] = useState<Message[]>([
-    {
-      id: 1,
-      content: "Hey! How are you?",
-      sender: "user",
-      timestamp: "09:30"
-    },
-    {
-      id: 2,
-      content: "I'm good, thanks! How about you?",
-      sender: "contact",
-      timestamp: "09:31"
-    },
-    {
-      id: 3,
-      content: "Check this image!",
-      sender: "user",
-      timestamp: "09:32",
-      attachment: {
-        type: 'image',
-        url: 'https://picsum.photos/200/300',
-        name: 'sample-image.jpg'
-      }
-    }
-  ])
+  const [messages, setMessages] = useState<Message[]>([])
   const [messageInput, setMessageInput] = useState('')
   const [showEmojiPicker, setShowEmojiPicker] = useState(false)
   const emojiPickerRef = useRef<HTMLDivElement>(null)
@@ -209,7 +185,58 @@ const Chat = () => {
 
   const handleDeleteChat = (contactId: number) => {
     setContacts(prevContacts => prevContacts.filter(contact => contact.id !== contactId))
+    if (selectedContact?.id === contactId) {
+      setSelectedContact(null)
+      setMessages([])
+    }
   }
+
+  // Função para carregar mensagens do contato selecionado
+  const loadContactMessages = (contact: Contact) => {
+    // Aqui você pode carregar as mensagens do banco de dados
+    // Por enquanto vamos usar mensagens de exemplo
+    const mockMessages: Message[] = [
+      {
+        id: 1,
+        content: "Olá! Como vai?",
+        sender: "user",
+        timestamp: "09:30"
+      },
+      {
+        id: 2,
+        content: "Oi! Tudo bem e você?",
+        sender: "contact",
+        timestamp: "09:31"
+      },
+      {
+        id: 3,
+        content: "Estou bem também! Viu aquela foto que te enviei?",
+        sender: "user",
+        timestamp: "09:32"
+      },
+      {
+        id: 4,
+        content: "Sim, ficou ótima!",
+        sender: "contact",
+        timestamp: "09:33",
+        attachment: {
+          type: 'image',
+          url: 'https://picsum.photos/200/300',
+          name: 'foto.jpg'
+        }
+      }
+    ]
+    setMessages(mockMessages)
+  }
+
+  // Atualiza o useEffect para monitorar mudanças no selectedContact
+  useEffect(() => {
+    if (selectedContact) {
+      loadContactMessages(selectedContact)
+    } else {
+      setMessages([])
+    }
+  }, [selectedContact])
 
   return (
     <div className="h-screen flex flex-col md:flex-row bg-gray-100">
@@ -256,8 +283,9 @@ const Chat = () => {
               <ChatListItem
                 key={contact.id}
                 contact={contact}
-                onSelect={setSelectedContact}
-                onDelete={handleDeleteChat}
+                isSelected={selectedContact?.id === contact.id}
+                onClick={() => setSelectedContact(contact)}
+                onDelete={() => handleDeleteChat(contact.id)}
               />
             ))}
           </div>
@@ -288,14 +316,12 @@ const Chat = () => {
         </div>
       </div>
 
-      {/* Área do Chat */}
-      <div className={`${
-        selectedContact ? 'flex' : 'hidden md:flex'
-      } flex-1 flex-col h-full`}>
+      {/* Chat Area */}
+      <div className="flex-1 flex flex-col bg-white">
         {selectedContact ? (
           <>
             {/* Chat Header */}
-            <div className="p-4 border-b border-gray-200 bg-white">
+            <div className="p-4 border-b border-gray-200 flex justify-between items-center">
               <div className="flex items-center space-x-4">
                 <button 
                   className="md:hidden p-2 hover:bg-gray-100 rounded-full"
@@ -314,50 +340,56 @@ const Chat = () => {
               </div>
             </div>
 
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-gray-50">
-              {messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
-                >
+            {/* Messages Area */}
+            <div className="flex-1 p-4 overflow-y-auto">
+              {messages.length > 0 ? (
+                messages.map((message) => (
                   <div
-                    className={`max-w-xs px-4 py-2 rounded-lg ${
-                      message.sender === 'user'
-                        ? 'bg-blue-500 text-white'
-                        : 'bg-white text-gray-900'
-                    }`}
+                    key={message.id}
+                    className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}
                   >
-                    <p>{message.content}</p>
-                    {message.attachment && (
-                      <div className="mt-2">
-                        {message.attachment.type === 'image' ? (
-                          <img 
-                            src={message.attachment.url} 
-                            alt={message.attachment.name}
-                            className="rounded-lg max-w-full h-auto"
-                          />
-                        ) : (
-                          <div className="flex items-center space-x-2 text-sm">
-                            <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                            <span>{message.attachment.name}</span>
-                          </div>
-                        )}
-                      </div>
-                    )}
-                    <span className="text-xs opacity-75 mt-1 block">
-                      {message.timestamp}
-                    </span>
+                    <div
+                      className={`max-w-xs px-4 py-2 rounded-lg ${
+                        message.sender === 'user'
+                          ? 'bg-blue-500 text-white'
+                          : 'bg-white text-gray-900'
+                      }`}
+                    >
+                      <p>{message.content}</p>
+                      {message.attachment && (
+                        <div className="mt-2">
+                          {message.attachment.type === 'image' ? (
+                            <img 
+                              src={message.attachment.url} 
+                              alt={message.attachment.name}
+                              className="rounded-lg max-w-full h-auto"
+                            />
+                          ) : (
+                            <div className="flex items-center space-x-2 text-sm">
+                              <svg xmlns="http://www.w3.org/2000/svg" className="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                              </svg>
+                              <span>{message.attachment.name}</span>
+                            </div>
+                          )}
+                        </div>
+                      )}
+                      <span className="text-xs opacity-75 mt-1 block">
+                        {message.timestamp}
+                      </span>
+                    </div>
                   </div>
+                ))
+              ) : (
+                <div className="flex-1 flex items-center justify-center bg-gray-50 h-full">
+                  <p className="text-gray-500">Selecione um contato para iniciar a conversa</p>
                 </div>
-              ))}
+              )}
             </div>
 
-            {/* Message Input */}
-            <div className="p-3 border-t border-gray-200 bg-white">
-              <div className="flex space-x-4">
+            {/* Input Area */}
+            <div className="border-t border-gray-200 p-4">
+              <div className="flex items-end space-x-2">
                 <div className="flex space-x-2">
                   <button 
                     className="p-2 text-gray-500 hover:text-gray-700 focus:outline-none"
@@ -396,7 +428,7 @@ const Chat = () => {
                   value={messageInput}
                   onChange={handleInputChange}
                   placeholder="Escreva uma mensagem..."
-                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none min-h-[40px] max-h-[150px] overflow-y-auto scrollbar-hide"
+                  className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500 resize-none min-h-[40px] max-h-[150px] overflow-y-auto"
                   onKeyPress={(e) => {
                     if (e.key === 'Enter' && !e.shiftKey) {
                       e.preventDefault()

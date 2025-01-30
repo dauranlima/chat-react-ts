@@ -10,11 +10,12 @@ interface Contact {
 
 interface ChatListItemProps {
   contact: Contact
-  onSelect: (contact: Contact) => void
+  isSelected: boolean
+  onClick: () => void
   onDelete: (contactId: number) => void
 }
 
-const ChatListItem = ({ contact, onSelect, onDelete }: ChatListItemProps) => {
+const ChatListItem = ({ contact, isSelected, onClick, onDelete }: ChatListItemProps) => {
   const [offset, setOffset] = useState(0)
   const [isDeleting, setIsDeleting] = useState(false)
 
@@ -69,13 +70,13 @@ const ChatListItem = ({ contact, onSelect, onDelete }: ChatListItemProps) => {
         {...handlers}
         className={`bg-white cursor-pointer transition-all duration-200 ${
           isDeleting ? 'opacity-0' : 'opacity-100'
-        }`}
+        } ${isSelected ? 'bg-gray-100' : 'hover:bg-gray-50'}`}
         style={{
           transform: `translateX(-${offset}px)`,
         }}
-        onClick={() => onSelect(contact)}
+        onClick={onClick}
       >
-        <div className="flex items-center space-x-3 p-3 hover:bg-gray-50">
+        <div className="flex items-center space-x-3 p-3">
           <img
             src={contact.avatar}
             alt={contact.name}
