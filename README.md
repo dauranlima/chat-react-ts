@@ -1,50 +1,106 @@
-# React + TypeScript + Vite
+# D-Chat - Chat Application
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Um aplicativo de chat moderno construído com React, TypeScript e Tailwind CSS.
 
-Currently, two official plugins are available:
+## 🚀 Funcionalidades
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react/README.md) uses [Babel](https://babeljs.io/) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
+- 💬 Chat em tempo real
+- 🔐 Sistema de autenticação (login/registro)
+- 📎 Suporte para anexos (imagens e documentos)
+- 😊 Seletor de emojis
+- 🔍 Busca de conversas
+- 📱 Design responsivo
+- 👤 Gerenciamento de contatos
 
-## Expanding the ESLint configuration
+## 🛠️ Tecnologias Utilizadas
 
-If you are developing a production application, we recommend updating the configuration to enable type aware lint rules:
+- [React](https://reactjs.org/) - Biblioteca JavaScript para construção de interfaces
+- [TypeScript](https://www.typescriptlang.org/) - Superset JavaScript com tipagem estática
+- [Tailwind CSS](https://tailwindcss.com/) - Framework CSS utilitário
+- [React Router](https://reactrouter.com/) - Roteamento
+- [Formik](https://formik.org/) - Gerenciamento de formulários
+- [Yup](https://github.com/jquense/yup) - Validação de esquemas
+- [Emoji Picker React](https://github.com/ealush/emoji-picker-react) - Seletor de emojis
 
-- Configure the top-level `parserOptions` property like this:
+## 📦 Instalação
 
-```js
-export default tseslint.config({
-  languageOptions: {
-    // other options...
-    parserOptions: {
-      project: ['./tsconfig.node.json', './tsconfig.app.json'],
-      tsconfigRootDir: import.meta.dirname,
-    },
-  },
-})
+```bash
+# Clone o repositório
+git clone https://github.com/seu-usuario/d-chat.git
+
+# Entre no diretório
+cd d-chat
+
+# Instale as dependências
+npm install
+
+# Inicie o servidor de desenvolvimento
+npm run dev
 ```
 
-- Replace `tseslint.configs.recommended` to `tseslint.configs.recommendedTypeChecked` or `tseslint.configs.strictTypeChecked`
-- Optionally add `...tseslint.configs.stylisticTypeChecked`
-- Install [eslint-plugin-react](https://github.com/jsx-eslint/eslint-plugin-react) and update the config:
+## 🏗️ Estrutura do Projeto
 
-```js
-// eslint.config.js
-import react from 'eslint-plugin-react'
-
-export default tseslint.config({
-  // Set the react version
-  settings: { react: { version: '18.3' } },
-  plugins: {
-    // Add the react plugin
-    react,
-  },
-  rules: {
-    // other rules...
-    // Enable its recommended rules
-    ...react.configs.recommended.rules,
-    ...react.configs['jsx-runtime'].rules,
-  },
-})
 ```
+src/
+├── components/        # Componentes reutilizáveis
+├── layouts/          # Layouts da aplicação
+├── pages/           # Páginas/Rotas
+└── assets/          # Recursos estáticos
+```
+
+### Principais Componentes
+
+- `InfoUser`: Exibe informações do usuário atual
+- `AuthLayout`: Layout para páginas de autenticação
+- `MainLayout`: Layout principal do chat
+- `Login`: Página de login
+- `Register`: Página de registro
+- `Chat`: Componente principal do chat
+
+## 🔒 Autenticação
+
+O sistema inclui:
+- Registro com nome, email e senha
+- Login com email e senha
+- Validação de formulários
+- Feedback visual de erros
+
+## 💭 Chat
+
+Funcionalidades do chat:
+- Lista de contatos
+- Mensagens em tempo real
+- Suporte para emojis
+- Upload de arquivos (imagens: PNG, JPEG, JPG)
+- Upload de documentos (PDF, DOC, DOCX, TXT)
+- Indicadores de status de mensagem
+- Interface responsiva
+
+## 🎨 UI/UX
+
+- Design moderno e minimalista
+- Feedback visual para ações do usuário
+- Layouts adaptáveis para desktop e mobile
+- Temas consistentes e acessíveis
+
+## 🤝 Contribuindo
+
+1. Faça um Fork do projeto
+2. Crie uma Branch para sua Feature (`git checkout -b feature/AmazingFeature`)
+3. Faça o Commit das suas mudanças (`git commit -m 'Add some AmazingFeature'`)
+4. Faça o Push para a Branch (`git push origin feature/AmazingFeature`)
+5. Abra um Pull Request
+
+## 📝 Licença
+
+Este projeto está sob a licença MIT. Veja o arquivo [LICENSE](LICENSE) para mais detalhes.
+
+## 👤 Autor
+
+Seu Nome
+- GitHub: [@seu-usuario](https://github.com/seu-usuario)
+- LinkedIn: [@seu-linkedin](https://linkedin.com/in/seu-linkedin)
+
+---
+
+⭐️ From [seu-usuario](https://github.com/seu-usuario)
