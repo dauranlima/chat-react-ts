@@ -6,122 +6,186 @@ import { User } from '../types/user'
 interface AuthContextType {
   user: User | null
   loading: boolean
-  signIn: (email: string, password: string) => Promise<any>
-  signUp: (email: string, password: string, userData: Partial<User>) => Promise<any>
+  signIn: (email: string, password: string) => Promise<void>
+  signUp: (email: string, password: string, userData: any) => Promise<void>
   signOut: () => Promise<void>
+  updateUserProfile: (userData: User) => Promise<void>
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-export function AuthProvider({ children }: { children: React.ReactNode }) {
+export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [user, setUser] = useState<User | null>(null)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    // Verifica o estado inicial da autenticação
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session?.user) {
-        fetchUserProfile(session.user)
-      }
-      setLoading(false)
-    })
+  const fetchUserProfile = async (supabaseUser: SupabaseUser) => {
+    try {
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', supabaseUser.id)
+        .single()
 
-    // Inscreve para mudanças na autenticação
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+      if (error) throw error
+
+      return profile as User
+    } catch (error) {
+      console.error('Erro ao buscar perfil:', error)
+      return null
+    }
+  }
+
+  const updateUserStatus = async (userId: string, isOnline: boolean) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({ online_status: isOnline ? 'online' : 'offline', last_seen: new Date().toISOString() })
+        .eq('id', userId)
+
+      if (error) {
+        throw error
+      }
+    } catch (error) {
+      console.error('Erro ao atualizar status:', error)
+    }
+  }
+
+  useEffect(() => {
+    const setupUser = async (session: { user: SupabaseUser } | null) => {
       if (session?.user) {
-        fetchUserProfile(session.user)
+        await updateUserStatus(session.user.id, true)
+        const profile = await fetchUserProfile(session.user)
+        setUser(profile)
       } else {
         setUser(null)
       }
       setLoading(false)
+    }
+
+    // Verifica a sessão inicial
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      setupUser(session)
     })
 
+    // Escuta mudanças na autenticação
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+      setupUser(session)
+    })
+
+    // Cleanup na desmontagem do componente
     return () => {
       subscription.unsubscribe()
     }
   }, [])
 
-  async function fetchUserProfile(supabaseUser: SupabaseUser) {
-    const { data, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', supabaseUser.id)
-      .single()
+  const signIn = async (email: string, password: string) => {
+    try {
+      const { data, error } = await supabase.auth.signInWithPassword({
+        email,
+        password,
+      })
 
-    if (error) {
-      console.error('Error fetching user profile:', error)
-      return
-    }
+      if (error) throw error
 
-    setUser(data)
-  }
-
-  async function signIn(email: string, password: string) {
-    const { data, error } = await supabase.auth.signInWithPassword({ 
-      email, 
-      password 
-    })
-    
-    if (error) {
-      if (error.message.includes('Email not confirmed')) {
-        throw new Error('Por favor, confirme seu email antes de fazer login. Verifique sua caixa de entrada.')
+      if (data.user) {
+        await updateUserStatus(data.user.id, true)
+        const profile = await fetchUserProfile(data.user)
+        setUser(profile)
       }
+    } catch (error) {
       throw error
     }
-
-    return data
   }
 
-  async function signUp(email: string, password: string, userData: Partial<User>) {
+  const signUp = async (email: string, password: string, userData: any) => {
     try {
-      console.log('Iniciando registro com:', { email, userData })
-
       const { data, error } = await supabase.auth.signUp({
         email,
         password,
         options: {
-          data: {
-            username: userData.username,
-            full_name: userData.full_name
-          },
-          emailRedirectTo: `${window.location.origin}/login`
-        }
+          data: userData,
+        },
       })
 
-      if (error) {
-        console.error('Erro no registro:', error)
-        throw error
-      }
+      if (error) throw error
 
-      if (!data.user) {
-        throw new Error('Usuário não foi criado')
-      }
+      if (data.user) {
+        const newProfile: User = {
+          id: data.user.id,
+          username: userData.username,
+          full_name: userData.full_name,
+          email: email,
+          online_status: 'online' as const,
+          last_seen: new Date().toISOString(),
+          avatar_url: null,
+          status: 'active' as const,
+          bio: '',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          is_verified: false,
+          is_blocked: false
+        }
 
-      console.log('Registro bem-sucedido:', data)
-      return data
+        const { error: profileError } = await supabase
+          .from('profiles')
+          .insert([newProfile])
+
+        if (profileError) throw profileError
+
+        setUser(newProfile)
+      }
     } catch (error) {
-      console.error('Erro detalhado:', error)
       throw error
     }
   }
 
-  async function signOut() {
-    const { error } = await supabase.auth.signOut()
-    if (error) throw error
+  const signOut = async () => {
+    try {
+      if (user) {
+        await updateUserStatus(user.id, false)
+      }
+      
+      const { error } = await supabase.auth.signOut()
+      if (error) throw error
+      
+      setUser(null)
+    } catch (error) {
+      throw error
+    }
   }
 
-  const value: AuthContextType = {
+  const updateUserProfile = async (userData: User) => {
+    try {
+      const { error } = await supabase
+        .from('profiles')
+        .update({
+          avatar_url: userData.avatar_url,
+          updated_at: new Date().toISOString()
+        })
+        .eq('id', userData.id)
+
+      if (error) throw error
+
+      setUser(userData)
+    } catch (error) {
+      console.error('Erro ao atualizar perfil:', error)
+      throw error
+    }
+  }
+
+  const value = {
     user,
     loading,
     signIn,
     signUp,
-    signOut
+    signOut,
+    updateUserProfile,
   }
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
-export function useAuth() {
+export const useAuth = () => {
   const context = useContext(AuthContext)
   if (context === undefined) {
     throw new Error('useAuth must be used within an AuthProvider')

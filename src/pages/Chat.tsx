@@ -5,6 +5,7 @@ import EmojiPicker from 'emoji-picker-react'
 import type { EmojiClickData } from 'emoji-picker-react'
 import InfoUser from '../components/InfoUser'
 import ChatListItem from '../components/ChatListItem'
+import { supabase } from '../lib/supabase'
 
 interface Message {
   id: number
@@ -156,10 +157,21 @@ const Chat = () => {
 
   const handleLogout = async () => {
     try {
+      // Primeiro limpa o estado local
+      setSelectedContact(null)
+      setSearchTerm('')
+      setMessageInput('')
+      setShowEmojiPicker(false)
+
+      // Faz o logout usando o contexto de autenticação
       await signOut()
-      navigate('/login')
+      
+      // Redireciona para o login
+      navigate('/login', { replace: true })
     } catch (error) {
       console.error('Erro ao fazer logout:', error)
+      // Mesmo com erro, força o redirecionamento
+      navigate('/login', { replace: true })
     }
   }
 
