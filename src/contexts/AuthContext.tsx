@@ -1,6 +1,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { User as SupabaseUser } from '@supabase/supabase-js'
-import { supabase, supabaseAdmin } from '../lib/supabase'
+import { supabase } from '../lib/supabase'
 import { User } from '../types/user'
 import { Session } from '@supabase/supabase-js'
 
@@ -27,16 +27,21 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   const [loading, setLoading] = useState(true)
 
   const fetchUserProfile = async (supabaseUser: SupabaseUser) => {
+    if (!supabaseUser?.id) return null
+
     try {
       const { data: profile, error } = await supabase
         .from('profiles')
-        .select('*')
+        .select()
         .eq('id', supabaseUser.id)
-        .single()
+        .maybeSingle()
 
-      if (error) throw error
+      if (error) {
+        console.error('Erro ao buscar perfil:', error)
+        return null
+      }
 
-      return profile as User
+      return profile as User | null
     } catch (error) {
       console.error('Erro ao buscar perfil:', error)
       return null
@@ -44,14 +49,19 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   const updateUserStatus = async (userId: string, isOnline: boolean) => {
+    if (!userId) return
+
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({ online_status: isOnline ? 'online' : 'offline', last_seen: new Date().toISOString() })
+        .update({
+          online_status: isOnline ? 'online' : 'offline',
+          last_seen: new Date().toISOString()
+        })
         .eq('id', userId)
 
       if (error) {
-        throw error
+        console.error('Erro ao atualizar status:', error)
       }
     } catch (error) {
       console.error('Erro ao atualizar status:', error)
@@ -59,29 +69,40 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   useEffect(() => {
-    const setupUser = async (session: { user: SupabaseUser } | null) => {
-      if (session?.user) {
-        await updateUserStatus(session.user.id, true)
-        const profile = await fetchUserProfile(session.user)
-        setUser(profile)
-      } else {
-        setUser(null)
+    let mounted = true
+
+    const setupUser = async (session: Session | null) => {
+      if (!session?.user) {
+        if (mounted) {
+          setUser(null)
+          setLoading(false)
+        }
+        return
       }
-      setLoading(false)
+
+      const profile = await fetchUserProfile(session.user)
+      
+      if (mounted) {
+        if (profile) {
+          await updateUserStatus(session.user.id, true)
+          setUser(profile)
+        } else {
+          setUser(null)
+        }
+        setLoading(false)
+      }
     }
 
-    // Verifica a sessão inicial
     supabase.auth.getSession().then(({ data: { session } }) => {
       setupUser(session)
     })
 
-    // Escuta mudanças na autenticação
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (_event, session) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       setupUser(session)
     })
 
-    // Cleanup na desmontagem do componente
     return () => {
+      mounted = false
       subscription.unsubscribe()
     }
   }, [])
@@ -96,9 +117,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       if (error) throw error
 
       if (data.user) {
-        await updateUserStatus(data.user.id, true)
         const profile = await fetchUserProfile(data.user)
-        setUser(profile)
+        if (profile) {
+          await updateUserStatus(data.user.id, true)
+          setUser(profile)
+        }
       }
     } catch (error) {
       throw error
@@ -111,8 +134,23 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     metadata: { username: string; full_name: string }
   ) => {
     try {
-      // 1. Criar usuário no Auth
-      console.log('Iniciando processo de registro...')
+      // 1. Verifica se o username já existe
+      const { data: existingUser, error: checkError } = await supabase
+        .from('profiles')
+        .select('username')
+        .eq('username', metadata.username.toLowerCase())
+        .maybeSingle()
+
+      if (checkError) {
+        console.error('Erro ao verificar username:', checkError)
+        throw new Error('Erro ao verificar disponibilidade do username')
+      }
+
+      if (existingUser) {
+        throw new Error('Este nome de usuário já está em uso')
+      }
+
+      // 2. Tenta criar o usuário no Auth
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email,
         password,
@@ -123,76 +161,59 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
       })
 
       if (authError) {
-        console.error('Erro na criação do usuário:', authError)
-        if (authError.message === 'email rate limit exceeded') {
-          throw new Error('Muitas tentativas de registro. Por favor, aguarde alguns minutos antes de tentar novamente.')
+        if (authError.message.includes('User already registered')) {
+          throw new Error('Este email já está cadastrado')
         }
         throw authError
       }
 
-      if (!authData.user) {
-        console.error('Usuário não foi criado no Auth')
+      if (!authData?.user) {
         throw new Error('Não foi possível criar o usuário')
       }
 
-      console.log('Usuário criado com sucesso no Auth:', authData.user.id)
+      // 3. Aguarda um pequeno intervalo para garantir que o Auth foi criado
+      await new Promise(resolve => setTimeout(resolve, 1000))
 
-      // 2. Criar perfil do usuário usando o supabaseAdmin
-      const newProfile = {
-        id: authData.user.id,
-        username: metadata.username,
-        full_name: metadata.full_name,
-        email: email,
-        online_status: 'offline',
-        last_seen: new Date().toISOString(),
-        avatar_url: null,
-        status: 'active',
-        bio: '',
-        is_verified: false,
-        is_blocked: false
-      }
-
-      console.log('Tentando criar perfil:', newProfile)
-
-      const { data: profileData, error: profileError } = await supabaseAdmin
+      // 4. Cria o perfil do usuário
+      const { error: profileError } = await supabase
         .from('profiles')
-        .insert([newProfile])
-        .select()
+        .upsert([
+          {
+            id: authData.user.id,
+            username: metadata.username.toLowerCase(),
+            full_name: metadata.full_name,
+            email: email,
+            online_status: 'offline',
+            last_seen: new Date().toISOString(),
+            avatar_url: null,
+            status: 'active',
+            bio: '',
+            is_verified: false,
+            is_blocked: false
+          }
+        ], { 
+          onConflict: 'id',
+          ignoreDuplicates: false 
+        })
 
       if (profileError) {
-        console.error('Erro na criação do perfil:', profileError)
-        
-        // Tenta deletar o usuário do Auth se falhar ao criar o perfil
+        console.error('Erro ao criar perfil:', profileError)
+        // Se falhar ao criar o perfil, tenta deletar o usuário do Auth
         try {
-          await supabaseAdmin.auth.admin.deleteUser(authData.user.id)
+          await supabase.auth.admin.deleteUser(authData.user.id)
         } catch (deleteError) {
           console.error('Erro ao deletar usuário após falha no perfil:', deleteError)
         }
-
-        throw new Error(`Erro ao criar perfil do usuário: ${profileError.message}`)
+        throw new Error('Erro ao criar perfil do usuário')
       }
 
-      console.log('Perfil criado com sucesso:', profileData)
       return { data: authData, error: null }
 
     } catch (error) {
-      console.error('Erro completo no signUp:', error)
-      if (error instanceof Error) {
-        // Tratamento específico para o erro de limite de email
-        if (error.message.includes('email rate limit exceeded')) {
-          return { 
-            data: null, 
-            error: new Error('Muitas tentativas de registro. Por favor, aguarde alguns minutos antes de tentar novamente.')
-          }
-        }
-        return { 
-          data: null, 
-          error: new Error(error.message || 'Erro ao criar usuário')
-        }
-      }
+      console.error('Erro no signUp:', error)
       return { 
         data: null, 
-        error: new Error('Erro desconhecido ao criar usuário')
+        error: error instanceof Error ? error : new Error('Erro desconhecido ao criar usuário')
       }
     }
   }
@@ -216,10 +237,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     try {
       const { error } = await supabase
         .from('profiles')
-        .update({
-          avatar_url: userData.avatar_url,
-          updated_at: new Date().toISOString()
-        })
+        .update(userData)
         .eq('id', userData.id)
 
       if (error) throw error
